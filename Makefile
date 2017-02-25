@@ -6,7 +6,7 @@
 #    By: hdelaby <hdelaby@student.42.fr>            +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2016/12/05 13:43:29 by hdelaby           #+#    #+#              #
-#    Updated: 2017/02/24 15:46:47 by hdelaby          ###   ########.fr        #
+#    Updated: 2017/02/25 15:41:35 by hdelaby          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -21,7 +21,9 @@ LIBFLAGS= -Llibft -lft
 INC= -I./includes -I./libft/includes
 
 SRC_PATH = src
-SRC_NAME = interpreter.c
+SRC_NAME = interpreter.c\
+		   lexer.c\
+		   ast.c
 
 OBJ_PATH = obj
 OBJ_NAME = $(SRC_NAME:.c=.o)

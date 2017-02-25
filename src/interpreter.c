@@ -6,88 +6,125 @@
 /*   By: hdelaby <hdelaby@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/02/24 14:09:35 by hdelaby           #+#    #+#             */
-/*   Updated: 2017/02/24 16:26:32 by hdelaby          ###   ########.fr       */
+/*   Updated: 2017/02/25 16:32:40 by hdelaby          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "libft.h"
 #include "interpreter.h"
+#include "ft_printf.h"
 
-void			error(void)
+t_ast	*expr(t_list **token);
+
+void			error(size_t type)
 {
-	ft_putendl_fd("Parsing error", 2);
+	ft_printf("Parsing error at token type %zu", type);
 	exit(1);
 }
 
-struct s_token	get_next_token(struct s_input *input)
+void	eat(size_t type, t_list **token)
 {
-	struct s_token	token;
-
-	ft_bzero(&token, sizeof(token));
-	while (input->str[input->pos] == ' ')
-		input->pos++;
-	if (input->pos == ft_strlen(input->str))
-		token.type = END;
-	else if (ft_isdigit(input->str[input->pos]))
-	{
-		token.type = INTEGER;
-		token.value = ft_atoi(input->str + input->pos);
-		while (ft_isdigit(input->str[input->pos]))
-			input->pos++;
-		return (token);
-	}
-	else if (input->str[input->pos] == '+')
-		token.type = PLUS;
-	else if (input->str[input->pos] == '-')
-		token.type = MINUS;
+	if ((*token)->content_size == type)
+		*token = (*token)->next;
 	else
-		error();
-	input->pos++;
-	return (token);
+		error((*token)->content_size);
 }
 
-struct s_token	eat(char type, struct s_token token, struct s_input *input)
+t_ast	*factor(t_list **token)
 {
-	if (token.type == type)
+	t_list	*node;
+	t_ast	*ret;
+
+	ret = NULL;
+	if ((*token)->content_size == INTEGER)
 	{
-		token = get_next_token(input);
-		return (token);
+		node = *token;
+		eat(INTEGER, token);
+		return (ft_astnum(INTEGER, *(int *)node->content));
 	}
 	else
-		error();
-	return (token);
+	{
+		eat(LPAREN, token);
+		ret = expr(token);
+		eat(RPAREN, token);
+	}
+	return (ret);
 }
 
-int				interpreter(char *str)
+t_ast	*term(t_list **token)
 {
-	struct s_token	token;
-	int				left;
-	int				right;
-	int				op;
-	struct s_input	input;
+	size_t	op;
+	t_ast	*ast;
 
-	input.str = str;
-	input.pos = 0;
-	token = get_next_token(&input);
-	left = token.value;
-	token = eat(INTEGER, token, &input);
-	op = token.type;
-	if (op == PLUS)
-		token = eat(PLUS, token, &input);
+	ast = factor(token);
+	while ((*token)->content_size == TIMES || (*token)->content_size == DIVIDE)
+	{
+		op = (*token)->content_size;
+		if (op == TIMES)
+			eat(TIMES, token);
+		else
+			eat(DIVIDE, token);
+		return (ft_astop(op, ast, factor(token)));
+	}
+	return (ast);
+}
+
+t_ast	*expr(t_list **token)
+{
+	size_t	op;
+	t_ast	*ast;
+
+	ast = term(token);
+	while ((*token)->content_size == PLUS || (*token)->content_size == MINUS)
+	{
+		op = (*token)->content_size;
+		if (op == PLUS)
+			eat(PLUS, token);
+		else
+			eat(MINUS, token);
+		return (ft_astop(op, ast, term(token)));
+	}
+	return (ast);
+}
+
+int		execution(t_ast *ast);
+
+int		visit_op(t_ast *ast)
+{
+	if (ast->type == PLUS)
+		return (execution(ast->left) + execution(ast->right));
+	else if (ast->type == MINUS)
+		return (execution(ast->left) - execution(ast->right));
+	else if (ast->type == TIMES)
+		return (execution(ast->left) * execution(ast->right));
 	else
-		token = eat(MINUS, token, &input);
-	right = token.value;
-	token = eat(INTEGER, token, &input);
-	if (op == PLUS)
-		return (left + right);
-	return (left - right);
+		return (execution(ast->left) / execution(ast->right));
+}
+
+int		visit_num(t_ast *ast)
+{
+	return (ast->value);
+}
+
+int		execution(t_ast *ast)
+{
+	if (!ast)
+		return (0);
+	if (ast->type == INTEGER)
+		return (visit_num(ast));
+	else
+		return (visit_op(ast));
 }
 
 int				main(void)
 {
-	char			*str;
+	char	*str;
+	t_list	*token;
+	t_ast	*ast;
 
 	get_next_line(0, &str);
-	ft_putnbr(interpreter(str));
+	token = lexer(str);
+	ast = expr(&token);
+	ft_putnbr(execution(ast));
 	free(str);
 }
